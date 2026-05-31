@@ -156,6 +156,7 @@
                 id="buyingPrice"
                 v-model="newProduct.purchasePrice"
                 placeholder="Enter buying price"
+                min="0"
                 required
               />
             </div>
@@ -167,6 +168,7 @@
                 id="quantity"
                 v-model="newProduct.quantity"
                 placeholder="Enter product quantity"
+                min="0"
                 required
               />
             </div>
@@ -188,7 +190,7 @@
                 type="date"
                 id="expirationDate"
                 v-model="newProduct.expirationDate"
-                placeholder="Enter expiry date"
+                :min="minDateExpiry"
               />
             </div>
 
@@ -198,7 +200,8 @@
                 type="date"
                 id="saleDate"
                 v-model="newProduct.saleDate"
-                placeholder="Enter buying date"
+                :min="minDateBuying"
+                :max="today"
               />
             </div>
 
@@ -209,6 +212,7 @@
                 id="thresholdValue"
                 v-model="newProduct.thresholdValue"
                 placeholder="Enter threshold value"
+                min="0"
                 required
               />
             </div>
@@ -288,6 +292,16 @@ export default {
         item.productName.toLowerCase().includes(lowerSearchTerm)
       );
     },
+    today() {
+      return new Date().toISOString().split('T')[0];
+    },
+    minDateExpiry() {
+      return `${new Date().getFullYear()}-01-01`;
+    },
+    minDateBuying() {
+      const year = new Date().getFullYear() - 5;
+      return `${year}-01-01`;
+    },
   },
   methods: {
     availabilityBadgeClass(status) {
@@ -328,6 +342,43 @@ export default {
       this.newProduct.imagePreview = URL.createObjectURL(file);
     },
     async submitNewProduct() {
+      const { purchasePrice, quantity, thresholdValue, expirationDate, saleDate } = this.newProduct;
+
+      if (Number(purchasePrice) < 0) {
+        alert('Buying Price cannot be negative.');
+        return;
+      }
+      if (Number(quantity) < 0) {
+        alert('Quantity cannot be negative.');
+        return;
+      }
+      if (Number(thresholdValue) < 0) {
+        alert('Threshold Value cannot be negative.');
+        return;
+      }
+
+      const currentYear = new Date().getFullYear();
+
+      if (expirationDate) {
+        const expiryYear = parseInt(expirationDate.split('-')[0], 10);
+        if (expiryYear < currentYear) {
+          alert('Expiry Date cannot be in the past.');
+          return;
+        }
+      }
+
+      if (saleDate) {
+        const buyingYear = parseInt(saleDate.split('-')[0], 10);
+        if (buyingYear < currentYear - 5) {
+          alert('Buying Date cannot be more than 5 years in the past.');
+          return;
+        }
+        if (saleDate > this.today) {
+          alert('Buying Date cannot be in the future.');
+          return;
+        }
+      }
+
       try {
         const payload = mapProductToApi({
           ...this.newProduct,
