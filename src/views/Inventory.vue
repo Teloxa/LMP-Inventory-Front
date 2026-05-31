@@ -1,0 +1,754 @@
+<!-- eslint-disable vue/multi-word-component-names -->
+<template>
+  <div class="page-layout">
+    <!-- Barra lateral -->
+    <SideBar />
+
+    <!-- Contenido principal -->
+    <div class="main-content">
+      <header class="app-topbar">
+        <div class="app-topbar-search buscador">
+          <input
+            type="text"
+            placeholder="Search products…"
+            class="input-buscador"
+            v-model="searchTerm"
+            @input="filterProducts"
+          />
+        </div>
+        <div class="app-topbar-actions">
+          <Userbar />
+        </div>
+      </header>
+
+      <div class="page-body">
+      <!-- Resumen general del inventario -->
+      <section class="overview">
+        <div class="overview-card">
+          <h2>Overall Inventory</h2>
+          <div class="overview-info">
+            <div class="info">
+              <h3>Total Categories</h3>
+              <p>{{ categories }}</p>
+              <span>Unique categories</span>
+            </div>
+            <div class="info">
+              <h4>Total Products</h4>
+              <p>{{ totalProducts }}</p>
+              <span>Total number of products</span>
+            </div>
+            <div class="info">
+              <h5>Top Selling</h5>
+              <p>{{ topProduct.productName || "N/A" }}</p>
+              <span>Best-selling product</span>
+            </div>
+            <div class="info">
+              <h6>Low Stock</h6>
+              <p>{{ lowStock }}</p>
+              <span>Products below threshold</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TTable products -->
+      <section class="orders">
+        <div class="orders-card">
+          <div class="orders-card2">
+            <h2>Products</h2>
+            <div class="actions">
+              <button class="add-btn" @click="toggleAddProductDialog">Add Product</button>
+              <button class="download-btn" @click="downloadAllProducts">Download All</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Buying Price</th>
+                <th>Quantity</th>
+                <th>Threshold Value</th>
+                <th>Expiry Date</th>
+                <th>Availability</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="item in filteredProducts"
+                :key="item.id"
+                @click="selectProduct(item)"
+                style="cursor: pointer;"
+              >
+                  <td>{{ item.productName }}</td>
+                  <td>${{ item.purchasePrice }}</td>
+                  <td>{{ item.quantity }}</td>
+                  <td>{{ item.thresholdValue }}</td>
+                  <td>{{ item.expirationDate || "N/A" }}</td>
+                <td>
+                  <span
+                    class="pro-badge"
+                    :class="availabilityBadgeClass(item.availabilityStatus)"
+                  >
+                    {{ item.availabilityStatus }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      </div>
+
+      <!-- Modal para agregar producto -->
+      <div v-if="showAddProductDialog" class="modal-overlay">
+        <div class="modal">
+          <h2 class="modal-title">New Product</h2>
+          <form @submit.prevent="submitNewProduct" class="form-container">
+            <!-- Carga de imagen -->
+            <div class="form-group image-upload">
+              <label for="imagen">
+                <div class="image-placeholder">
+                  <span v-if="!newProduct.image">Drag image here or</span>
+                  <span v-if="!newProduct.image" class="browse-link">Browse image</span>
+                  <img
+                    v-if="newProduct.imagePreview"
+                    :src="newProduct.imagePreview"
+                    alt="Preview"
+                  />
+                </div>
+              </label>
+              <input
+                type="file"
+                id="imagen"
+                @change="handleImageUpload"
+                accept="image/*"
+                hidden
+              />
+            </div>
+
+            <!-- Campos del formulario -->
+            <div class="form-group">
+              <label for="productName">Product Name</label>
+              <input
+                type="text"
+                id="productName"
+                v-model="newProduct.productName"
+                placeholder="Enter product name"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="category">Category</label>
+              <input
+                type="text"
+                id="category"
+                v-model="newProduct.category"
+                placeholder="Enter product category"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="buyingPrice">Buying Price</label>
+              <input
+                type="number"
+                id="buyingPrice"
+                v-model="newProduct.purchasePrice"
+                placeholder="Enter buying price"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="quantity">Quantity</label>
+              <input
+                type="number"
+                id="quantity"
+                v-model="newProduct.quantity"
+                placeholder="Enter product quantity"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="unit">Unit</label>
+              <input
+                type="text"
+                id="unit"
+                v-model="newProduct.unit"
+                placeholder="Enter product unit"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="expirationDate">Expiry Date</label>
+              <input
+                type="date"
+                id="expirationDate"
+                v-model="newProduct.expirationDate"
+                placeholder="Enter expiry date"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="saleDate">Buying Date</label>
+              <input
+                type="date"
+                id="saleDate"
+                v-model="newProduct.saleDate"
+                placeholder="Enter buying date"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="thresholdValue">Threshold Value</label>
+              <input
+                type="number"
+                id="thresholdValue"
+                v-model="newProduct.thresholdValue"
+                placeholder="Enter threshold value"
+                required
+              />
+            </div>
+
+            <!-- Botones del formulario -->
+            <div class="modal-actions">
+              <button type="submit" class="add-btn">Add Product</button>
+              <button
+                type="button"
+                @click="toggleAddProductDialog"
+                class="discard-btn"
+              >
+                Discard
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Detalles del producto -->
+      <ProductDetails
+        v-if="showProductDetails"
+        :product="selectedProduct"
+        @close="closeProductDetails"
+        @update="handleProductUpdate"
+        @delete="handleProductDelete"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+import axios from "axios";
+import Userbar from "@/components/Userbar.vue";
+import SideBar from "@/components/SideBar.vue";
+import ProductDetails from "@/components/ProductDetails.vue";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import { mapProductFromApi, mapProductToApi } from "@/utils/apiMappers";
+
+export default {
+  components: {
+    Userbar,
+    SideBar,
+    ProductDetails,
+  },
+  data() {
+    return {
+      products: [],
+      searchTerm: "",
+      showAddProductDialog: false,
+      showProductDetails: false,
+      selectedProduct: null,
+      categories: 0,
+      totalProducts: 0,
+      topProduct: {},
+      lowStock: 0,
+      newProduct: {
+        productName: "",
+        category: "",
+        purchasePrice: 0,
+        quantity: 0,
+        unit: "",
+        expirationDate: "",
+        saleDate: "",
+        thresholdValue: 0,
+        image: null,
+        imagePreview: null,
+      },
+    };
+  },
+  computed: {
+    filteredProducts() {
+      if (!this.searchTerm) return this.products;
+      const lowerSearchTerm = this.searchTerm.toLowerCase();
+      return this.products.filter((item) =>
+        item.productName.toLowerCase().includes(lowerSearchTerm)
+      );
+    },
+  },
+  methods: {
+    availabilityBadgeClass(status) {
+      if (status === "In-stock") return "pro-badge--instock";
+      if (status === "Low stock") return "pro-badge--lowstock";
+      if (status === "Out of stock") return "pro-badge--outstock";
+      return "pro-badge--pending";
+    },
+    async fetchProducts() {
+      try {
+        const response = await axios.get("products");
+        this.products = response.data.map((doc) => mapProductFromApi(doc));
+        this.updateSummary();
+      } catch (error) {
+        console.error("Error fetching inventory:", error);
+      }
+    },
+    updateSummary() {
+      this.categories = new Set(
+        this.products.map((item) => item.category)
+      ).size;
+      this.totalProducts = this.products.length;
+      this.topProduct = this.products.reduce(
+        (prev, current) =>
+          (prev.sales || 0) > (current.sales || 0) ? prev : current,
+        {}
+      );
+      this.lowStock = this.products.filter(
+        (item) => item.quantity < item.thresholdValue
+      ).length;
+    },
+    toggleAddProductDialog() {
+      this.showAddProductDialog = !this.showAddProductDialog;
+    },
+    handleImageUpload(event) {
+      const file = event.target.files[0];
+      this.newProduct.image = file;
+      this.newProduct.imagePreview = URL.createObjectURL(file);
+    },
+    async submitNewProduct() {
+      try {
+        const payload = mapProductToApi({
+          ...this.newProduct,
+          imagePreview: this.newProduct.imagePreview || "",
+        });
+
+        const response = await axios.post("products", payload);
+
+        this.products.push(mapProductFromApi(response.data));
+        this.toggleAddProductDialog();
+        this.resetNewProduct();
+        this.updateSummary();
+      } catch (error) {
+        console.error(
+          "Error adding product:",
+          error.response?.data || error.message
+        );
+      }
+    },
+    resetNewProduct() {
+      this.newProduct = {
+        productName: "",
+        category: "",
+        purchasePrice: 0,
+        quantity: 0,
+        unit: "",
+        expirationDate: "",
+        saleDate: "",
+        thresholdValue: 0,
+        image: null,
+        imagePreview: null,
+      };
+    },
+    selectProduct(product) {
+      this.selectedProduct = product;
+      this.showProductDetails = true;
+    },
+    closeProductDetails() {
+      this.selectedProduct = null;
+      this.showProductDetails = false;
+    },
+    handleProductUpdate(updatedProduct) {
+      const index = this.products.findIndex(
+        (product) => product.id === updatedProduct.id
+      );
+      if (index !== -1) {
+        this.products.splice(index, 1, updatedProduct);
+      }
+      this.updateSummary();
+      this.closeProductDetails();
+    },
+    handleProductDelete(productId) {
+      this.products = this.products.filter(
+        (product) => product.id !== productId
+      );
+      this.updateSummary();
+      this.closeProductDetails();
+    },
+    downloadAllProducts() {
+      const doc = new jsPDF();
+
+      // Título del documento
+      doc.setFontSize(16);
+      doc.text("Products List", 10, 10);
+
+      // Crear datos de la tabla
+      const tableColumn = [
+        "Product",
+        "Category",
+        "Buying Price",
+        "Quantity",
+        "Threshold Value",
+        "Expiry Date",
+        "Availability",
+      ];
+      const tableRows = this.products.map((product) => [
+        product.productName,
+        product.category,
+        `$${product.purchasePrice}`,
+        product.quantity,
+        product.thresholdValue,
+        product.expirationDate || "N/A",
+        product.availabilityStatus,
+      ]);
+
+      // Agregar tabla al PDF
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 20,
+      });
+
+      // Descargar PDF
+      doc.save("products_list.pdf");
+    },
+  },
+  mounted() {
+    this.fetchProducts();
+  },
+};
+</script>
+
+<style scoped>
+/* Layout principal */
+
+/* Contenido principal */
+.contenido-principal {
+  flex: 1;
+  padding: 20px;
+  background-color: #f8f9fa; /* Fondo gris claro */
+}
+
+/* Barra de búsqueda y botones de acciones */
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.buscador {
+  flex: 1;
+  max-width: 400px;
+}
+
+.input-buscador {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: white;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.input-buscador::placeholder {
+  color: #aaa;
+  font-style: italic;
+}
+
+.input-buscador:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+  outline: none;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Botón de agregar producto */
+.add-btn {
+  background-color: #0052cc;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.add-btn:hover {
+  background-color: #003d99;
+}
+
+.download-btn {
+  background-color: transparent;
+  border: 1px solid #ccc;
+  color: #555;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
+}
+
+.download-btn:hover {
+  color: #000;
+  border-color: #888;
+}
+
+/* Resumen general */
+.overview {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.overview-card {
+  flex: 1;
+  background: #ffffff;
+  padding: 20px;
+  margin: 5px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.overview-card h2 {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.overview-info {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.info {
+  text-align: center;
+}
+
+.info h3, .info h4, .info h5, .info h6 {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.info p {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.info span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.orders {
+  margin-top: 20px;
+}
+
+.orders-card {
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.orders-card2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.orders-card h2 {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.orders-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.orders-card th,
+.orders-card td {
+  padding: 12px 10px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.orders-card thead th {
+  background-color: #f1f5f9;
+  color: #6b7280;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.orders-card tbody tr:hover {
+  background-color: #f3f4f6;
+  cursor: pointer;
+}
+
+.in-stock {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.out-of-stock {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.low-stock {
+  color: #ffc107;
+  font-weight: bold;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-title {
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Imagen en el formulario */
+.image-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.image-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 150px;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.image-placeholder img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+}
+
+.browse-link {
+  color: #007bff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.form-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 15px;
+}
+
+.form-group label {
+  flex: 0 0 150px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  text-align: left;
+}
+
+.form-group input,
+.form-group select {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.modal-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.add-btn-modal {
+  background-color: #0052cc;
+  color: white;
+}
+
+.add-btn-modal:hover {
+  background-color: #003d99;
+}
+
+.discard-btn {
+  background-color: #ddd;
+  color: black;
+}
+
+.discard-btn:hover {
+  background-color: #bbb;
+}
+</style>
