@@ -194,7 +194,7 @@
 
             >
 
-              <span class="pro-alert-sku">ID-{{ product.id }}</span>
+              <span class="pro-alert-sku">{{ product.category }}</span>
 
               <span class="pro-alert-name">{{ product.productName }}</span>
 

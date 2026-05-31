@@ -16,10 +16,19 @@
         <button
           type="button"
           class="avatar-btn"
+          :class="{ 'has-photo': photoProfile }"
           aria-label="User settings"
           @click="openUserDialog"
         >
-          {{ userInitial }}
+          <img
+            v-if="photoProfile"
+            :src="getFullImageUrl(photoProfile)"
+            alt="User avatar"
+            class="avatar-img"
+          />
+          <template v-else>
+            {{ userInitial }}
+          </template>
         </button>
       </div>
     </div>
@@ -79,6 +88,7 @@ export default {
     return {
       showDialog: false,
       username: "",
+      photoProfile: "",
       editableUser: {},
       profileImage: null,
       backendUrl: 'http://localhost:3000',
@@ -90,11 +100,31 @@ export default {
       return name.charAt(0).toUpperCase();
     },
   },
-  created() {
+  async created() {
     const storedUsername = localStorage.getItem("username");
     this.username = storedUsername ? storedUsername.replace(/^"|"$/g, '') : "";
+    await this.fetchUserProfile();
   },
   methods: {
+    async fetchUserProfile() {
+      try {
+        const token = localStorage.getItem("token");
+        const rawId = localStorage.getItem("id");
+        if (!token || !rawId) return;
+        const userId = rawId.replace(/^"|"$/g, '');
+        
+        const response = await axios.get(`user/getbyId/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const userData = response.data.usuario || response.data.user || response.data;
+        if (userData) {
+          this.photoProfile = userData.photoProfile || userData.profileImage || "";
+        }
+      } catch (error) {
+        console.error("Error fetching user profile image:", error);
+      }
+    },
     logout() {
       localStorage.clear();
       this.$router.push("/");
@@ -159,6 +189,7 @@ export default {
 
         alert('Information updated successfully');
         this.closeUserDialog();
+        await this.fetchUserProfile();
       } catch (error) {
         console.error("Error updating user:", error);
         alert("Unable to update the information");
@@ -270,6 +301,19 @@ export default {
 
 .avatar-btn:hover {
   border-color: #9ca3af;
+}
+
+.avatar-btn.has-photo {
+  padding: 0;
+  overflow: hidden;
+  background: none;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .dialog-overlay {
