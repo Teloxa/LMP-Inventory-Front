@@ -10,7 +10,7 @@ Frontend application for the LMP Inventory system built with Vue 3 and Vuetify.
 Clone the repository and install dependencies:
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Teloxa/LMP-Inventory-Front.git
 cd LMP-Inventory-Front
 npm install
 # or: yarn install
